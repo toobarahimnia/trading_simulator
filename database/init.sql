@@ -42,7 +42,7 @@ CREATE TABLE portfolio (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, stock_symbol)
 );
-
+     
 -- Insert sample data
 INSERT INTO users (username, email, balance) VALUES 
 ('demo_user', 'demo@trading.com', 50000.00);
