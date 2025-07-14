@@ -2,7 +2,7 @@
 
 A modern full-stack web application for virtual stock trading with real-time price updates and portfolio tracking.
 
-## Features
+## Features 
 
 - **Virtual Trading**: Buy and sell stocks with $50,000 starting balance
 - **Real-time Charts**: Interactive stock price charts with live updates
