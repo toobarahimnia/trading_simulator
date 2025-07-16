@@ -1,9 +1,6 @@
 package com.trading.simulator.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -16,23 +13,17 @@ public class Portfolio {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull(message = "User ID is required")
     @Column(name = "user_id")
     private Long userId;
 
-    @NotBlank(message = "Stock symbol is required")
     @Column(name = "stock_symbol")
     private String stockSymbol;
 
-    @NotNull(message = "Quantity is required")
-    @PositiveOrZero(message = "Quantity must be positive or zero")
     private Integer quantity = 0;
 
-    @NotNull(message = "Average price is required")
     @Column(name = "average_price", precision = 10, scale = 2)
     private BigDecimal averagePrice;
 
-    @NotNull(message = "Total invested is required")
     @Column(name = "total_invested", precision = 12, scale = 2)
     private BigDecimal totalInvested;
 
