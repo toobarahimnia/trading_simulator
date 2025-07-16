@@ -1,8 +1,6 @@
 package com.trading.simulator.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -13,15 +11,15 @@ public class Stock {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Stock symbol is required")
+    // @NotBlank(message = "Stock symbol is required")
     @Column(unique = true)
     private String symbol;
 
-    @NotBlank(message = "Company name is required")
+    // @NotBlank(message = "Company name is required")
     @Column(name = "company_name")
     private String companyName;
 
-    @NotNull(message = "Current price cannot be null")
+    // @NotNull(message = "Current price cannot be null")
     @Column(name = "current_price", precision = 10, scale = 2)
     private BigDecimal currentPrice;
 
@@ -30,13 +28,6 @@ public class Stock {
 
     // Constructors
     public Stock() {}
-
-    public Stock(String symbol, String companyName, BigDecimal currentPrice) {
-        this.symbol = symbol;
-        this.companyName = companyName;
-        this.currentPrice = currentPrice;
-        this.lastUpdated = LocalDateTime.now();
-    }
 
     // Lifecycle methods
     @PrePersist
