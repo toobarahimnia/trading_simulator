@@ -1,29 +1,22 @@
 package com.trading.simulator.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
+@Entity // database entity class
 @Table(name = "users")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "Username is required")
     @Column(unique = true)
     private String username;
 
-    @Email(message = "Valid email is required")
-    @NotBlank(message = "Email is required")
     @Column(unique = true)
     private String email;
 
-    @NotNull(message = "Balance cannot be null")
     @Column(precision = 12, scale = 2)
     private BigDecimal balance = BigDecimal.valueOf(50000.00);
 
@@ -35,12 +28,6 @@ public class User {
 
     // Constructors
     public User() {}
-
-    public User(String username, String email) {
-        this.username = username;
-        this.email = email;
-        this.balance = BigDecimal.valueOf(50000.00);
-    }
 
     // Lifecycle methods
     @PrePersist
