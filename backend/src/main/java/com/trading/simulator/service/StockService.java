@@ -6,9 +6,9 @@ import com.trading.simulator.repository.StockRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,14 +18,11 @@ public class StockService {
     @Autowired
     private StockRepository stockRepository;
 
-    
     @Value("${alphavantage.api.key}")
     private String apiKey;
 
     @Value("${alphavantage.api.base-url}")
     private String baseUrl;
-
-    private final RestTemplate restTemplate = new RestTemplate();
 
     public List<Stock> getAllStocks() {
         return stockRepository.findAll();
@@ -36,45 +33,13 @@ public class StockService {
     }
 
     public StockQuote getStockQuote(String symbol) {
-        // First try to get from database
-        Optional<Stock> stockOpt = stockRepository.findBySymbol(symbol.toUpperCase());
-        
-        if (stockOpt.isPresent()) {
-            Stock stock = stockOpt.get();
-            
-            // For demo purposes, simulate real-time data with small random changes
-            BigDecimal currentPrice = stock.getCurrentPrice();
-            BigDecimal change = generateRandomChange(currentPrice);
-            BigDecimal changePercent = change.divide(currentPrice, 4, BigDecimal.ROUND_HALF_UP)
-                                          .multiply(BigDecimal.valueOf(100));
-            
-            // Update stock price in database
-            stock.setCurrentPrice(currentPrice.add(change));
-            stockRepository.save(stock);
-            
-            return new StockQuote(
-                stock.getSymbol(),
-                stock.getCompanyName(),
-                currentPrice.add(change),
-                change,
-                changePercent,
-                stock.getLastUpdated().toString()
-            );
-        }
-        
-        // If not found in database, create default response
-        return createDefaultStockQuote(symbol);
+        return stockRepository.findBySymbol(symbol.toUpperCase())
+                .map(this::buildSimulatedQuote)
+                .orElseGet(() -> createDefaultStockQuote(symbol));
     }
 
     public StockQuote getRealTimeQuote(String symbol) {
-        try {
-            // This would call Alpha Vantage API in production
-            // For demo, we'll use database values with simulated changes
-            return getStockQuote(symbol);
-        } catch (Exception e) {
-            // Fallback to database or default values
-            return getStockQuote(symbol);
-        }
+        return getStockQuote(symbol); // For demo, just simulate
     }
 
     public Stock saveStock(Stock stock) {
@@ -82,32 +47,56 @@ public class StockService {
     }
 
     public void updateStockPrice(String symbol, BigDecimal newPrice) {
-        Optional<Stock> stockOpt = stockRepository.findBySymbol(symbol.toUpperCase());
-        if (stockOpt.isPresent()) {
-            Stock stock = stockOpt.get();
-            stock.setCurrentPrice(newPrice);
-            stockRepository.save(stock);
-        }
-    }
-
-    private BigDecimal generateRandomChange(BigDecimal currentPrice) {
-        // Generate random change between -2% to +2%
-        double randomPercent = (Math.random() - 0.5) * 0.04; // -0.02 to +0.02
-        return currentPrice.multiply(BigDecimal.valueOf(randomPercent));
-    }
-
-    private StockQuote createDefaultStockQuote(String symbol) {
-        return new StockQuote(
-            symbol.toUpperCase(),
-            "Unknown Company",
-            BigDecimal.valueOf(100.00),
-            BigDecimal.ZERO,
-            BigDecimal.ZERO,
-            "Unknown"
-        );
+        stockRepository.findBySymbol(symbol.toUpperCase())
+                .ifPresent(stock -> {
+                    stock.setCurrentPrice(newPrice);
+                    stockRepository.save(stock);
+                });
     }
 
     public boolean stockExists(String symbol) {
         return stockRepository.existsBySymbol(symbol.toUpperCase());
+    }
+
+    // ========== PRIVATE HELPERS ==========
+
+    private StockQuote buildSimulatedQuote(Stock stock) {
+        BigDecimal currentPrice = stock.getCurrentPrice();
+        BigDecimal change = generateRandomChange(currentPrice);
+        BigDecimal newPrice = currentPrice.add(change);
+        BigDecimal changePercent = calculateChangePercent(currentPrice, change);
+
+        stock.setCurrentPrice(newPrice);
+        stockRepository.save(stock);
+
+        return new StockQuote(
+                stock.getSymbol(),
+                stock.getCompanyName(),
+                newPrice,
+                change,
+                changePercent,
+                stock.getLastUpdated().toString()
+        );
+    }
+
+    private BigDecimal generateRandomChange(BigDecimal currentPrice) {
+        double randomPercent = (Math.random() - 0.5) * 0.04; // -2% to +2%
+        return currentPrice.multiply(BigDecimal.valueOf(randomPercent));
+    }
+
+    private BigDecimal calculateChangePercent(BigDecimal originalPrice, BigDecimal change) {
+        if (originalPrice.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
+        return change.divide(originalPrice, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100));
+    }
+
+    private StockQuote createDefaultStockQuote(String symbol) {
+        return new StockQuote(
+                symbol.toUpperCase(),
+                "Unknown Company",
+                BigDecimal.valueOf(100.00),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                "Unknown"
+        );
     }
 }
