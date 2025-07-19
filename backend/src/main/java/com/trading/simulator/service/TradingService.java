@@ -32,87 +32,63 @@ public class TradingService {
     @Autowired
     private PortfolioRepository portfolioRepository;
 
-    @Autowired
-    private StockService stockService;
-
     @Transactional
     public Transaction executeTrade(TradeRequest tradeRequest) {
-        // Validate user exists
-        User user = userRepository.findById(tradeRequest.getUserId())
+        User user = getUserOrThrow(tradeRequest.getUserId());
+        Stock stock = getStockOrThrow(tradeRequest.getStockSymbol());
+        BigDecimal price = stock.getCurrentPrice();
+        BigDecimal totalAmount = price.multiply(BigDecimal.valueOf(tradeRequest.getQuantity()));
+        String type = tradeRequest.getTransactionType().toUpperCase();
+
+        return switch (type) {
+            case "BUY" -> executeBuyOrder(user, stock, tradeRequest.getQuantity(), price, totalAmount);
+            case "SELL" -> executeSellOrder(user, stock, tradeRequest.getQuantity(), price, totalAmount);
+            default -> throw new RuntimeException("Invalid transaction type. Must be BUY or SELL");
+        };
+    }
+
+    private User getUserOrThrow(Long userId) {
+        return userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
-        // Validate stock exists
-        Stock stock = stockRepository.findBySymbol(tradeRequest.getStockSymbol().toUpperCase())
+    private Stock getStockOrThrow(String symbol) {
+        return stockRepository.findBySymbol(symbol.toUpperCase())
                 .orElseThrow(() -> new RuntimeException("Stock not found"));
+    }
 
-        BigDecimal currentPrice = stock.getCurrentPrice();
-        BigDecimal totalAmount = currentPrice.multiply(BigDecimal.valueOf(tradeRequest.getQuantity()));
-
-        Transaction transaction;
-
-        if ("BUY".equalsIgnoreCase(tradeRequest.getTransactionType())) {
-            transaction = executeBuyOrder(user, stock, tradeRequest.getQuantity(), currentPrice, totalAmount);
-        } else if ("SELL".equalsIgnoreCase(tradeRequest.getTransactionType())) {
-            transaction = executeSellOrder(user, stock, tradeRequest.getQuantity(), currentPrice, totalAmount);
-        } else {
-            throw new RuntimeException("Invalid transaction type. Must be BUY or SELL");
-        }
-
-        return transaction;
+    private Transaction createAndSaveTransaction(Long userId, String symbol, String type,
+                                                 Integer quantity, BigDecimal price, BigDecimal totalAmount) {
+        return transactionRepository.save(new Transaction(userId, symbol, type, quantity, price, totalAmount));
     }
 
     private Transaction executeBuyOrder(User user, Stock stock, Integer quantity, BigDecimal price, BigDecimal totalAmount) {
-        // Check if user has sufficient balance
         if (user.getBalance().compareTo(totalAmount) < 0) {
             throw new RuntimeException("Insufficient balance for this purchase");
         }
 
-        // Update user balance
         user.setBalance(user.getBalance().subtract(totalAmount));
         userRepository.save(user);
 
-        // Create transaction record
-        Transaction transaction = new Transaction(
-                user.getId(),
-                stock.getSymbol(),
-                "BUY",
-                quantity,
-                price,
-                totalAmount
-        );
-        transaction = transactionRepository.save(transaction);
-
-        // Update portfolio
+        Transaction transaction = createAndSaveTransaction(user.getId(), stock.getSymbol(), "BUY", quantity, price, totalAmount);
         updatePortfolioForBuy(user.getId(), stock.getSymbol(), quantity, price, totalAmount);
 
         return transaction;
     }
 
     private Transaction executeSellOrder(User user, Stock stock, Integer quantity, BigDecimal price, BigDecimal totalAmount) {
-        // Check if user has sufficient shares
-        Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdAndStockSymbol(user.getId(), stock.getSymbol());
-        
-        if (portfolioOpt.isEmpty() || portfolioOpt.get().getQuantity() < quantity) {
+        Portfolio portfolio = portfolioRepository.findByUserIdAndStockSymbol(user.getId(), stock.getSymbol())
+                .orElseThrow(() -> new RuntimeException("Insufficient shares to sell"));
+
+        if (portfolio.getQuantity() < quantity) {
             throw new RuntimeException("Insufficient shares to sell");
         }
 
-        // Update user balance
         user.setBalance(user.getBalance().add(totalAmount));
         userRepository.save(user);
 
-        // Create transaction record
-        Transaction transaction = new Transaction(
-                user.getId(),
-                stock.getSymbol(),
-                "SELL",
-                quantity,
-                price,
-                totalAmount
-        );
-        transaction = transactionRepository.save(transaction);
-
-        // Update portfolio
-        updatePortfolioForSell(user.getId(), stock.getSymbol(), quantity, price, totalAmount);
+        Transaction transaction = createAndSaveTransaction(user.getId(), stock.getSymbol(), "SELL", quantity, price, totalAmount);
+        updatePortfolioForSell(portfolio, quantity);
 
         return transaction;
     }
@@ -121,66 +97,50 @@ public class TradingService {
         Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdAndStockSymbol(userId, stockSymbol);
 
         if (portfolioOpt.isPresent()) {
-            // Update existing portfolio entry
             Portfolio portfolio = portfolioOpt.get();
-            
             BigDecimal newTotalInvested = portfolio.getTotalInvested().add(totalAmount);
             Integer newQuantity = portfolio.getQuantity() + quantity;
-            BigDecimal newAveragePrice = newTotalInvested.divide(BigDecimal.valueOf(newQuantity), 2, RoundingMode.HALF_UP);
+            BigDecimal newAvgPrice = newTotalInvested.divide(BigDecimal.valueOf(newQuantity), 2, RoundingMode.HALF_UP);
 
             portfolio.setQuantity(newQuantity);
-            portfolio.setAveragePrice(newAveragePrice);
+            portfolio.setAveragePrice(newAvgPrice);
             portfolio.setTotalInvested(newTotalInvested);
-            
             portfolioRepository.save(portfolio);
         } else {
-            // Create new portfolio entry
             Portfolio portfolio = new Portfolio(userId, stockSymbol, quantity, price, totalAmount);
             portfolioRepository.save(portfolio);
         }
     }
 
-    private void updatePortfolioForSell(Long userId, String stockSymbol, Integer quantity, BigDecimal price, BigDecimal totalAmount) {
-        Portfolio portfolio = portfolioRepository.findByUserIdAndStockSymbol(userId, stockSymbol)
-                .orElseThrow(() -> new RuntimeException("Portfolio entry not found"));
-
+    private void updatePortfolioForSell(Portfolio portfolio, Integer quantity) {
         Integer newQuantity = portfolio.getQuantity() - quantity;
-        
+
         if (newQuantity == 0) {
-            // Remove portfolio entry if no shares left
             portfolioRepository.delete(portfolio);
         } else {
-            // Update portfolio entry
             BigDecimal soldInvestment = portfolio.getAveragePrice().multiply(BigDecimal.valueOf(quantity));
-            BigDecimal newTotalInvested = portfolio.getTotalInvested().subtract(soldInvestment);
-            
             portfolio.setQuantity(newQuantity);
-            portfolio.setTotalInvested(newTotalInvested);
-            
+            portfolio.setTotalInvested(portfolio.getTotalInvested().subtract(soldInvestment));
             portfolioRepository.save(portfolio);
         }
     }
 
     public boolean canExecuteTrade(TradeRequest tradeRequest) {
-        User user = userRepository.findById(tradeRequest.getUserId())
-                .orElse(null);
-        
+        User user = userRepository.findById(tradeRequest.getUserId()).orElse(null);
         if (user == null) return false;
 
-        Stock stock = stockRepository.findBySymbol(tradeRequest.getStockSymbol().toUpperCase())
-                .orElse(null);
-        
+        Stock stock = stockRepository.findBySymbol(tradeRequest.getStockSymbol().toUpperCase()).orElse(null);
         if (stock == null) return false;
 
         BigDecimal totalAmount = stock.getCurrentPrice().multiply(BigDecimal.valueOf(tradeRequest.getQuantity()));
+        String type = tradeRequest.getTransactionType().toUpperCase();
 
-        if ("BUY".equalsIgnoreCase(tradeRequest.getTransactionType())) {
-            return user.getBalance().compareTo(totalAmount) >= 0;
-        } else if ("SELL".equalsIgnoreCase(tradeRequest.getTransactionType())) {
-            Optional<Portfolio> portfolioOpt = portfolioRepository.findByUserIdAndStockSymbol(user.getId(), stock.getSymbol());
-            return portfolioOpt.isPresent() && portfolioOpt.get().getQuantity() >= tradeRequest.getQuantity();
-        }
-
-        return false;
+        return switch (type) {
+            case "BUY" -> user.getBalance().compareTo(totalAmount) >= 0;
+            case "SELL" -> portfolioRepository.findByUserIdAndStockSymbol(user.getId(), stock.getSymbol())
+                    .map(p -> p.getQuantity() >= tradeRequest.getQuantity())
+                    .orElse(false);
+            default -> false;
+        };
     }
 }
