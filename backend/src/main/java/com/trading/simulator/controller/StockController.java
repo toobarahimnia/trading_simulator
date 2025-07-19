@@ -18,19 +18,27 @@ public class StockController {
     @Autowired
     private StockService stockService;
 
+    // Get all available stocks
     @GetMapping
     public ResponseEntity<List<Stock>> getAllStocks() {
         List<Stock> stocks = stockService.getAllStocks();
         return ResponseEntity.ok(stocks);
     }
 
+    // Get a stock by its symbol
     @GetMapping("/{symbol}")
     public ResponseEntity<Stock> getStock(@PathVariable String symbol) {
-        Optional<Stock> stock = stockService.getStockBySymbol(symbol);
-        return stock.map(ResponseEntity::ok)
-                   .orElse(ResponseEntity.notFound().build());
+        Optional<Stock> optionalStock = stockService.getStockBySymbol(symbol);
+
+        if (optionalStock.isPresent()) {
+            Stock stock = optionalStock.get();
+            return ResponseEntity.ok(stock);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 
+    // Get simulated stock quote
     @GetMapping("/{symbol}/quote")
     public ResponseEntity<StockQuote> getStockQuote(@PathVariable String symbol) {
         try {
@@ -41,6 +49,7 @@ public class StockController {
         }
     }
 
+    // Get real-time stock quote
     @GetMapping("/{symbol}/realtime")
     public ResponseEntity<StockQuote> getRealTimeQuote(@PathVariable String symbol) {
         try {
@@ -51,6 +60,7 @@ public class StockController {
         }
     }
 
+    // Check if a stock symbol exists in the system
     @GetMapping("/{symbol}/exists")
     public ResponseEntity<Boolean> stockExists(@PathVariable String symbol) {
         boolean exists = stockService.stockExists(symbol);
