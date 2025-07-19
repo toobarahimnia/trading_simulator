@@ -2,7 +2,6 @@ package com.trading.simulator.controller;
 
 import com.trading.simulator.dto.PortfolioSummary;
 import com.trading.simulator.entity.Portfolio;
-import com.trading.simulator.entity.Transaction;
 import com.trading.simulator.service.PortfolioService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -50,17 +49,6 @@ public class PortfolioController {
         return ResponseEntity.ok(totalInvested);
     }
 
-    @GetMapping("/user/{userId}/transactions")
-    public ResponseEntity<List<Transaction>> getUserTransactionHistory(@PathVariable Long userId) {
-        List<Transaction> transactions = portfolioService.getUserTransactionHistory(userId);
-        return ResponseEntity.ok(transactions);
-    }
-
-    @GetMapping("/user/{userId}/transactions/{stockSymbol}")
-    public ResponseEntity<List<Transaction>> getStockTransactionHistory(@PathVariable Long userId, @PathVariable String stockSymbol) {
-        List<Transaction> transactions = portfolioService.getStockTransactionHistory(userId, stockSymbol);
-        return ResponseEntity.ok(transactions);
-    }
 
     @GetMapping("/user/{userId}/position/{stockSymbol}")
     public ResponseEntity<Portfolio> getPortfolioPosition(@PathVariable Long userId, @PathVariable String stockSymbol) {
