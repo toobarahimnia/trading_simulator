@@ -32,7 +32,7 @@ public class TradingController {
             boolean canExecute = tradingService.canExecuteTrade(tradeRequest);
             return ResponseEntity.ok(canExecute);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(false);
+            return ResponseEntity.badRequest().body(false); 
         }
     }
 }
