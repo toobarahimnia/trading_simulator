@@ -47,7 +47,7 @@ public class StockController {
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
-    }
+    } 
 
     // Get real-time stock quote
     @GetMapping("/{symbol}/realtime")
