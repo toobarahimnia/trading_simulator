@@ -29,7 +29,7 @@ public class UserController {
         return user.map(ResponseEntity::ok)
                   .orElse(ResponseEntity.notFound().build());
     }
-
+ 
     @GetMapping("/username/{username}")
     public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
         Optional<User> user = userRepository.findByUsername(username);
