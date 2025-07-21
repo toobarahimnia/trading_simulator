@@ -25,7 +25,7 @@ public class Stock {
 
     @Column(name = "last_updated")
     private LocalDateTime lastUpdated;
-
+ 
     // Constructors
     public Stock() {}
 
