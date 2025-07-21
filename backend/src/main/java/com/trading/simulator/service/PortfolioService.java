@@ -101,7 +101,7 @@ public class PortfolioService {
                 gainLoss,
                 gainLossPercent
         );
-    }
+    } 
 
     private BigDecimal calculateGainLossPercent(BigDecimal totalInvested, BigDecimal gainLoss) {
         if (totalInvested.compareTo(BigDecimal.ZERO) == 0) return BigDecimal.ZERO;
