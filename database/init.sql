@@ -19,17 +19,6 @@ CREATE TABLE stocks (
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Transactions table (buy/sell history)
-CREATE TABLE transactions (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id),
-    stock_symbol VARCHAR(10) NOT NULL,
-    transaction_type VARCHAR(4) NOT NULL CHECK (transaction_type IN ('BUY', 'SELL')),
-    quantity INTEGER NOT NULL,
-    price_per_share DECIMAL(10, 2) NOT NULL,
-    total_amount DECIMAL(12, 2) NOT NULL,
-    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
 
 -- Portfolio table (current holdings)
 CREATE TABLE portfolio (
@@ -54,8 +43,6 @@ INSERT INTO stocks (symbol, company_name, current_price) VALUES
 ('TSLA', 'Tesla Inc.', 220.50),
 ('AMZN', 'Amazon.com Inc.', 3200.00);
 
--- Create indexes for better performance
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_stock_symbol ON transactions(stock_symbol);
+-- Create indexes for better performance - speed up lookups
 CREATE INDEX idx_portfolio_user_id ON portfolio(user_id);
 CREATE INDEX idx_stocks_symbol ON stocks(symbol);
